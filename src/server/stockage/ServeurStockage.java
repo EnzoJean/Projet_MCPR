@@ -3,9 +3,7 @@ package server.stockage;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-/**
- * Lance le serveur de gestion d'un local RMI sur le port 1101
- */
+/* Lance le serveur de gestion des locaux RMI sur le port 1101 */
 public class ServeurStockage {
 
     public static final int PORT = 1101;
@@ -13,13 +11,11 @@ public class ServeurStockage {
 
     public static void main(String[] args) {
         try {
-            int idLocal = (args.length > 0) ? Integer.parseInt(args[0]) : 1;
-
             System.out.println("==============================================");
-            System.out.println("  PART'TOOL - Serveur Local #" + idLocal);
+            System.out.println("  PART'TOOL - Serveur de Stockage");
             System.out.println("==============================================\n");
 
-            ServiceStockageImpl service = new ServiceStockageImpl(idLocal);
+            ServiceStockageImpl service = new ServiceStockageImpl();
             Registry registry = LocateRegistry.createRegistry(PORT);
             registry.rebind(NOM_SERVICE, service);
 

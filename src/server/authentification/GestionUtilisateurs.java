@@ -4,16 +4,12 @@ import common.modeles.Utilisateur;
 import java.io.*;
 import java.util.HashMap;
 
-/**
- * Gère la persistence des utilisateurs sur disque
- */
+/* Gère la persistence des utilisateurs sur disque */
 public class GestionUtilisateurs {
 
     private static final String FICHIER_UTILISATEURS = "data/utilisateurs.dat";
 
-    /**
-     * Sauvegarde tous les utilisateurs dans un fichier
-     */
+    /* Sauvegarde tous les utilisateurs dans un fichier  */
     public static void sauvegarder(HashMap<Long, Utilisateur> utilisateurs) {
         try {
             File fichier = new File(FICHIER_UTILISATEURS);
@@ -28,9 +24,7 @@ public class GestionUtilisateurs {
         }
     }
 
-    /**
-     * Charge tous les utilisateurs depuis le fichier
-     */
+    /* Charge tous les utilisateurs depuis le fichier */
     @SuppressWarnings("unchecked")
     public static HashMap<Long, Utilisateur> charger() {
         File fichier = new File(FICHIER_UTILISATEURS);

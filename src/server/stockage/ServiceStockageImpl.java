@@ -2,30 +2,29 @@ package server.stockage;
 
 import common.IServiceStockage;
 import common.IServiceAuthentification;
+import common.modeles.LocalStockage;
+import common.modeles.Utilisateur;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.*;
 
-/**
- * Implémentation du service de gestion d'un local (squelette étape 3)
- */
+/* Implémentation du service de gestion des locaux de stockage */
 public class ServiceStockageImpl extends UnicastRemoteObject implements IServiceStockage {
 
     private IServiceAuthentification serviceAuth;
-    private int idLocal;
+    private Map<Long, LocalStockage> locaux;
 
-    public ServiceStockageImpl(int idLocal) throws RemoteException {
+    public ServiceStockageImpl() throws RemoteException {
         super();
-        this.idLocal = idLocal;
-        System.out.println("[Stockage] Service démarré pour local " + idLocal);
+        this.locaux = GestionLocaux.charger();
+        System.out.println("[Stockage] Service démarré avec " + locaux.size() + " local/locaux");
         connecterAuServeurAuth();
     }
 
-    /**
-     * Établit la connexion au serveur d'authentification
-     */
+    /* Établit la connexion au serveur d'authentification */
     private void connecterAuServeurAuth() {
         try {
             Registry registry = LocateRegistry.getRegistry("localhost", 1099);
@@ -38,16 +37,113 @@ public class ServiceStockageImpl extends UnicastRemoteObject implements IService
 
     @Override
     public String testerConnexion() throws RemoteException {
-        return "Serveur local " + idLocal + " opérationnel";
+        return "Serveur de stockage opérationnel";
     }
 
-    /**
-     * Vérifie un jeton via le serveur d'authentification
-     */
-    protected boolean verifierJeton(String jeton) throws RemoteException {
+    @Override
+    public boolean deverrouillerLocal(long carteAcces, String code, long idLocal) throws RemoteException {
         if (serviceAuth == null) {
             throw new RemoteException("Service d'authentification non disponible");
         }
-        return serviceAuth.verifierJeton(jeton);
+
+        LocalStockage local = locaux.get(idLocal);
+        if (local == null) {
+            System.out.println("[Stockage] Local #" + idLocal + " introuvable");
+            return false;
+        }
+
+        Utilisateur utilisateur = serviceAuth.obtenirUtilisateurParJeton(
+                serviceAuth.seConnecter(carteAcces, code).getValeur());
+
+        if (utilisateur == null) {
+            System.out.println("[Stockage] Accès refusé : identifiants incorrects");
+            return false;
+        }
+
+        if (!local.estAutorise(carteAcces)) {
+            local.ajouterUtilisateurAutorise(carteAcces);
+            GestionLocaux.sauvegarder(locaux);
+        }
+
+        System.out.println("[Stockage] Déverrouillage local #" + idLocal + " par " +
+                utilisateur.getPrenom() + " " + utilisateur.getNom());
+        return true;
+    }
+
+    @Override
+    public List<LocalStockage> consulterTousLocaux(String jeton) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+        return new ArrayList<>(locaux.values());
+    }
+
+    @Override
+    public LocalStockage obtenirLocal(String jeton, long idLocal) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+        return locaux.get(idLocal);
+    }
+
+    @Override
+    public boolean ajouterOutilLocal(String jeton, long idLocal, long qrCodeOutil) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+
+        LocalStockage local = locaux.get(idLocal);
+        if (local == null) {
+            return false;
+        }
+
+        if (local.getNbOutilsStockes() >= local.getCapaciteMax()) {
+            System.out.println("[Stockage] Local #" + idLocal + " plein");
+            return false;
+        }
+
+        local.ajouterOutil(qrCodeOutil);
+        GestionLocaux.sauvegarder(locaux);
+        System.out.println("[Stockage] Outil QR#" + qrCodeOutil + " ajouté au local #" + idLocal);
+        return true;
+    }
+
+    @Override
+    public boolean retirerOutilLocal(String jeton, long idLocal, long qrCodeOutil) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+
+        LocalStockage local = locaux.get(idLocal);
+        if (local == null) {
+            return false;
+        }
+
+        local.retirerOutil(qrCodeOutil);
+        GestionLocaux.sauvegarder(locaux);
+        System.out.println("[Stockage] Outil QR#" + qrCodeOutil + " retiré du local #" + idLocal);
+        return true;
+    }
+
+    @Override
+    public List<Long> consulterOutilsLocal(String jeton, long idLocal) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+
+        LocalStockage local = locaux.get(idLocal);
+        if (local == null) {
+            return new ArrayList<>();
+        }
+
+        return new ArrayList<>(local.getOutilsStockes());
+    }
+
+    /* Vérifie un jeton et retourne l'utilisateur associé */
+    private Utilisateur verifierEtObtenirUtilisateur(String jeton) throws RemoteException {
+        if (serviceAuth == null) {
+            throw new RemoteException("Service d'authentification non disponible");
+        }
+
+        if (!serviceAuth.verifierJeton(jeton)) {
+            throw new RemoteException("Jeton invalide ou expiré");
+        }
+
+        Utilisateur utilisateur = serviceAuth.obtenirUtilisateurParJeton(jeton);
+        if (utilisateur == null) {
+            throw new RemoteException("Utilisateur non trouvé");
+        }
+
+        return utilisateur;
     }
 }

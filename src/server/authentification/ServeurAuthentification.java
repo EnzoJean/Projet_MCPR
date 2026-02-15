@@ -3,9 +3,7 @@ package server.authentification;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-/**
- * Lance le serveur d'authentification RMI sur le port 1099
- */
+/* Lance le serveur d'authentification RMI sur le port 1099 */
 public class ServeurAuthentification {
 
     public static final int PORT = 1099;

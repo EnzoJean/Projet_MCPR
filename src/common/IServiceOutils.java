@@ -1,15 +1,34 @@
 package common;
 
+import common.modeles.Outil;
+import common.modeles.CategorieOutil;
+
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.List;
 
-/**
- * Interface RMI du serveur de gestion des outils (squelette pour l'étape 2)
- */
+/* Interface RMI du serveur de gestion des outils */
 public interface IServiceOutils extends Remote {
 
-    /**
-     * Teste la connexion au serveur
-     */
+    /* Teste la connexion au serveur */
     String testerConnexion() throws RemoteException;
+
+    /* Déclare un nouvel outil */
+    Outil declarerOutil(String jeton, String nom, String usage, String description,
+            double poids, String dimensions, CategorieOutil categorie) throws RemoteException;
+
+    /* Consulte tous les outils disponibles */
+    List<Outil> consulterTousOutils(String jeton) throws RemoteException;
+
+    /* Consulte les outils d'une catégorie spécifique */
+    List<Outil> consulterOutilsParCategorie(String jeton, CategorieOutil categorie) throws RemoteException;
+
+    /* Recherche des outils par mot-clé */
+    List<Outil> rechercherOutils(String jeton, String motCle) throws RemoteException;
+
+    /* Obtient un outil spécifique par son QR code */
+    Outil obtenirOutil(String jeton, long qrCode) throws RemoteException;
+
+    /* Consulte les outils déclarés par l'utilisateur connecté */
+    List<Outil> consulterMesOutils(String jeton) throws RemoteException;
 }

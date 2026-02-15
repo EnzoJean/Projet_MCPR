@@ -8,10 +8,8 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 
-/**
- * Implémentation du serveur d'authentification
- * Gère les inscriptions, connexions et jetons de session
- */
+/* Implémentation du serveur d'authentification
+ * Gère les inscriptions, connexions et jetons de session */
 public class ServiceAuthentificationImpl extends UnicastRemoteObject implements IServiceAuthentification {
 
     private HashMap<Long, Utilisateur> utilisateurs;
@@ -27,9 +25,7 @@ public class ServiceAuthentificationImpl extends UnicastRemoteObject implements 
         System.out.println("[Auth] Serveur initialisé avec " + utilisateurs.size() + " compte(s)");
     }
 
-    /**
-     * Inscrit un nouvel utilisateur avec génération automatique carte + code
-     */
+    /* Inscrit un nouvel utilisateur avec génération automatique carte + code */
     @Override
     public Utilisateur inscrire(String nom, String prenom, String email) throws RemoteException {
         System.out.println("[Auth] Inscription : " + prenom + " " + nom);
@@ -45,9 +41,7 @@ public class ServiceAuthentificationImpl extends UnicastRemoteObject implements 
         return utilisateur;
     }
 
-    /**
-     * Connecte un utilisateur et génère un jeton de session
-     */
+    /* Connecte un utilisateur et génère un jeton de session */
     @Override
     public Jeton seConnecter(long carteAcces, String code) throws RemoteException {
         System.out.println("[Auth] Tentative connexion : Carte=" + carteAcces);
@@ -72,9 +66,7 @@ public class ServiceAuthentificationImpl extends UnicastRemoteObject implements 
         return jeton;
     }
 
-    /**
-     * Vérifie qu'un jeton existe et n'est pas expiré
-     */
+    /* Vérifie qu'un jeton existe et n'est pas expiré */
     @Override
     public boolean verifierJeton(String valeurJeton) throws RemoteException {
         Jeton jeton = jetonsActifs.get(valeurJeton);
@@ -93,9 +85,7 @@ public class ServiceAuthentificationImpl extends UnicastRemoteObject implements 
         return true;
     }
 
-    /**
-     * Retourne l'utilisateur associé à un jeton valide
-     */
+    /* Retourne l'utilisateur associé à un jeton valide */
     @Override
     public Utilisateur obtenirUtilisateurParJeton(String valeurJeton) throws RemoteException {
         Jeton jeton = jetonsActifs.get(valeurJeton);
@@ -105,18 +95,14 @@ public class ServiceAuthentificationImpl extends UnicastRemoteObject implements 
         return utilisateurs.get(jeton.getCarteAcces());
     }
 
-    /**
-     * Supprime un jeton pour déconnecter l'utilisateur
-     */
+    /* Supprime un jeton pour déconnecter l'utilisateur */
     @Override
     public void seDeconnecter(String valeurJeton) throws RemoteException {
         jetonsActifs.remove(valeurJeton);
         System.out.println("[Auth] Déconnexion");
     }
 
-    /**
-     * Génère un numéro de carte unique basé sur le timestamp
-     */
+    /* Génère un numéro de carte unique basé sur le timestamp */
     private long genererNumeroCarte() {
         long carte = System.currentTimeMillis() + random.nextInt(10000);
         while (utilisateurs.containsKey(carte)) {
@@ -125,16 +111,12 @@ public class ServiceAuthentificationImpl extends UnicastRemoteObject implements 
         return carte;
     }
 
-    /**
-     * Génère un code PIN à 6 chiffres
-     */
+    /* Génère un code PIN à 6 chiffres */
     private String genererCode() {
         return String.format("%06d", random.nextInt(1000000));
     }
 
-    /**
-     * Affiche les statistiques du serveur
-     */
+    /* Affiche les statistiques du serveur */
     public void afficherStatistiques() {
         System.out.println("\n=== STATS ===");
         System.out.println("Utilisateurs : " + utilisateurs.size());

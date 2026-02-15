@@ -3,9 +3,7 @@ package server.outils;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-/**
- * Lance le serveur de gestion des outils RMI sur le port 1100
- */
+/* Lance le serveur de gestion des outils RMI sur le port 1100 */
 public class ServeurOutils {
 
     public static final int PORT = 1100;
