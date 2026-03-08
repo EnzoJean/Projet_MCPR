@@ -6,6 +6,7 @@ import common.IServiceStockage;
 import common.modeles.Utilisateur;
 import common.modeles.Jeton;
 import common.modeles.Outil;
+import common.modeles.Emprunt;
 import common.modeles.CategorieOutil;
 import common.modeles.LocalStockage;
 
@@ -92,6 +93,13 @@ public class ApplicationClient {
             System.out.println("\n  ═══ Gestion des Locaux ═══");
             System.out.println("  10. Consulter les locaux");
             System.out.println("  11. Détails d'un local");
+            System.out.println("  14. Stocker un outil dans un local");
+            System.out.println("  15. Retirer un outil d'un local");
+
+            System.out.println("\n  ═══ Emprunts ═══");
+            System.out.println("  12. Outils disponibles (avec localisation)");
+            System.out.println("  13. Mes emprunts en cours");
+
             System.out.println("\n  ═══ Compte ═══");
             System.out.println("  8. Mes informations");
             System.out.println("  9. Tester les serveurs");
@@ -491,6 +499,134 @@ public class ApplicationClient {
         }
     }
 
+    /* Stocke un outil dans un local (par QR code) */
+    private void stockerOutilDansLocal() {
+        if (serviceStockage == null) {
+            System.err.println("Serveur de stockage non disponible");
+            return;
+        }
+
+        System.out.println("\n═══ Stocker un Outil dans un Local ═══");
+
+        System.out.print("ID du local : ");
+        long idLocal;
+        try {
+            idLocal = Long.parseLong(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.err.println("ID invalide");
+            return;
+        }
+
+        System.out.print("QR code de l'outil : ");
+        long qrCode;
+        try {
+            qrCode = Long.parseLong(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.err.println("QR code invalide");
+            return;
+        }
+
+        try {
+            boolean succes = serviceStockage.ajouterOutilLocal(jetonCourant.getValeur(), idLocal, qrCode);
+            if (succes) {
+                System.out.println("[OK] Outil QR#" + qrCode + " stocké dans le local #" + idLocal);
+            } else {
+                System.err.println("[ÉCHEC] Stockage refusé (local plein ou introuvable)");
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur : " + e.getMessage());
+        }
+    }
+
+    /* Retire un outil d'un local */
+    private void retirerOutilDuLocal() {
+        if (serviceStockage == null) {
+            System.err.println("Serveur de stockage non disponible");
+            return;
+        }
+
+        System.out.println("\n═══ Retirer un Outil d'un Local ═══");
+
+        System.out.print("ID du local : ");
+        long idLocal;
+        try {
+            idLocal = Long.parseLong(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.err.println("ID invalide");
+            return;
+        }
+
+        System.out.print("QR code de l'outil : ");
+        long qrCode;
+        try {
+            qrCode = Long.parseLong(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.err.println("QR code invalide");
+            return;
+        }
+
+        try {
+            boolean succes = serviceStockage.retirerOutilLocal(jetonCourant.getValeur(), idLocal, qrCode);
+            if (succes) {
+                System.out.println("[OK] Outil QR#" + qrCode + " retiré du local #" + idLocal);
+            } else {
+                System.err.println("[ÉCHEC] Local introuvable");
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur : " + e.getMessage());
+        }
+    }
+
+    /* Consulte les outils disponibles à l'emprunt avec leur localisation */
+    private void consulterOutilsDisponibles() {
+        if (serviceOutils == null) {
+            System.err.println("Serveur d'outils non disponible");
+            return;
+        }
+
+        try {
+            List<Outil> outils = serviceOutils.consulterOutilsDisponibles(jetonCourant.getValeur());
+
+            System.out.println("\n═══ Outils Disponibles (" + outils.size() + ") ═══\n");
+
+            if (outils.isEmpty()) {
+                System.out.println("Aucun outil disponible actuellement");
+            } else {
+                for (Outil outil : outils) {
+                    System.out.println(outil);
+                    System.out.println();
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur : " + e.getMessage());
+        }
+    }
+
+    /* Consulte les emprunts en cours de l'utilisateur connecté */
+    private void consulterMesEmprunts() {
+        if (serviceOutils == null) {
+            System.err.println("Serveur d'outils non disponible");
+            return;
+        }
+
+        try {
+            List<Emprunt> emprunts = serviceOutils.consulterMesEmprunts(jetonCourant.getValeur());
+
+            System.out.println("\n═══ Mes Emprunts (" + emprunts.size() + ") ═══\n");
+
+            if (emprunts.isEmpty()) {
+                System.out.println("Vous n'avez aucun emprunt en cours");
+            } else {
+                for (Emprunt emprunt : emprunts) {
+                    System.out.println(emprunt);
+                    System.out.println();
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur : " + e.getMessage());
+        }
+    }
+
     /* Boucle principale de l'application */
     public void demarrer() {
         System.out.println("═══════════════════════════════════════════");
@@ -561,6 +697,30 @@ public class ApplicationClient {
                 case "11":
                     if (utilisateurCourant != null)
                         afficherDetailsLocal();
+                    else
+                        System.out.println("Connectez-vous d'abord");
+                    break;
+                case "12":
+                    if (utilisateurCourant != null)
+                        consulterOutilsDisponibles();
+                    else
+                        System.out.println("Connectez-vous d'abord");
+                    break;
+                case "13":
+                    if (utilisateurCourant != null)
+                        consulterMesEmprunts();
+                    else
+                        System.out.println("Connectez-vous d'abord");
+                    break;
+                case "14":
+                    if (utilisateurCourant != null)
+                        stockerOutilDansLocal();
+                    else
+                        System.out.println("Connectez-vous d'abord");
+                    break;
+                case "15":
+                    if (utilisateurCourant != null)
+                        retirerOutilDuLocal();
                     else
                         System.out.println("Connectez-vous d'abord");
                     break;

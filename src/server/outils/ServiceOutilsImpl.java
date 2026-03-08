@@ -2,9 +2,12 @@ package server.outils;
 
 import common.IServiceOutils;
 import common.IServiceAuthentification;
+import common.IServiceStockage;
 import common.modeles.Outil;
+import common.modeles.Emprunt;
 import common.modeles.Utilisateur;
 import common.modeles.CategorieOutil;
+import common.modeles.EtatOutil;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -17,15 +20,19 @@ import java.util.stream.Collectors;
 public class ServiceOutilsImpl extends UnicastRemoteObject implements IServiceOutils {
 
     private IServiceAuthentification serviceAuth;
+    private IServiceStockage serviceStockage;
     private HashMap<Long, Outil> outils;
+    private List<Emprunt> emprunts;
     private Random random;
 
     public ServiceOutilsImpl() throws RemoteException {
         super();
         this.outils = GestionOutils.charger();
+        this.emprunts = GestionOutils.chargerEmprunts();
         this.random = new Random();
         System.out.println("[Outils] Service démarré avec " + outils.size() + " outil(s)");
         connecterAuServeurAuth();
+        connecterAuServeurStockage();
     }
 
     /* Établit la connexion au serveur d'authentification */
@@ -36,6 +43,17 @@ public class ServiceOutilsImpl extends UnicastRemoteObject implements IServiceOu
             System.out.println("[Outils] Connecté au serveur d'authentification");
         } catch (Exception e) {
             System.err.println("[Outils] Serveur d'auth non disponible");
+        }
+    }
+
+    /* Établit la connexion au serveur de stockage */
+    private void connecterAuServeurStockage() {
+        try {
+            Registry registry = LocateRegistry.getRegistry("localhost", 1101);
+            serviceStockage = (IServiceStockage) registry.lookup("ServiceStockage");
+            System.out.println("[Outils] Connecté au serveur de stockage");
+        } catch (Exception e) {
+            System.err.println("[Outils] Serveur de stockage non disponible (emprunt/restitution limités)");
         }
     }
 
@@ -97,6 +115,103 @@ public class ServiceOutilsImpl extends UnicastRemoteObject implements IServiceOu
         Utilisateur utilisateur = verifierEtObtenirUtilisateur(jeton);
         return outils.values().stream()
                 .filter(o -> o.getProprietaire() == utilisateur.getCarteAcces())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Outil> consulterOutilsDisponibles(String jeton) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+        return outils.values().stream()
+                .filter(o -> o.getEtat() == EtatOutil.DISPONIBLE)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public boolean emprunterOutil(String jeton, long qrCode, long idLocal) throws RemoteException {
+        Utilisateur utilisateur = verifierEtObtenirUtilisateur(jeton);
+
+        Outil outil = outils.get(qrCode);
+        if (outil == null) {
+            throw new RemoteException("Outil QR#" + qrCode + " introuvable");
+        }
+
+        if (outil.getEtat() != EtatOutil.DISPONIBLE) {
+            throw new RemoteException("L'outil '" + outil.getNom() + "' n'est pas disponible (état : " + outil.getEtat().getLibelle() + ")");
+        }
+
+        /* Notifie le serveur de stockage pour retirer l'outil du local */
+        if (serviceStockage != null) {
+            boolean retire = serviceStockage.enregistrerEmprunt(jeton, qrCode, idLocal);
+            if (!retire) {
+                throw new RemoteException("Impossible de retirer l'outil du local #" + idLocal + ". Vérifiez que l'outil y est bien stocké.");
+            }
+        }
+
+        /* Met à jour l'état de l'outil */
+        outil.setEtat(EtatOutil.EMPRUNTE);
+        outil.setEmpruntePar(utilisateur.getCarteAcces());
+        outil.setLocalStockageId(null);
+        GestionOutils.sauvegarder(outils);
+
+        /* Enregistre l'emprunt dans l'historique */
+        Emprunt emprunt = new Emprunt(qrCode, utilisateur.getCarteAcces(), idLocal);
+        emprunts.add(emprunt);
+        GestionOutils.sauvegarderEmprunts(emprunts);
+
+        System.out.println("[Outils] Emprunt : QR#" + qrCode + " (" + outil.getNom() + ") par " +
+                utilisateur.getPrenom() + " " + utilisateur.getNom() + " depuis local #" + idLocal);
+        return true;
+    }
+
+    @Override
+    public boolean restituerOutil(String jeton, long qrCode, long idLocal) throws RemoteException {
+        Utilisateur utilisateur = verifierEtObtenirUtilisateur(jeton);
+
+        Outil outil = outils.get(qrCode);
+        if (outil == null) {
+            throw new RemoteException("Outil QR#" + qrCode + " introuvable");
+        }
+
+        if (outil.getEtat() != EtatOutil.EMPRUNTE) {
+            throw new RemoteException("L'outil '" + outil.getNom() + "' n'est pas en cours d'emprunt");
+        }
+
+        if (outil.getEmpruntePar() != utilisateur.getCarteAcces()) {
+            throw new RemoteException("Vous n'avez pas emprunté cet outil");
+        }
+
+        /* Notifie le serveur de stockage pour réintégrer l'outil dans le local */
+        if (serviceStockage != null) {
+            serviceStockage.enregistrerRestitution(jeton, qrCode, idLocal);
+        }
+
+        /* Met à jour l'état de l'outil */
+        outil.setEtat(EtatOutil.DISPONIBLE);
+        outil.setEmpruntePar(null);
+        outil.setLocalStockageId(idLocal);
+        GestionOutils.sauvegarder(outils);
+
+        /* Marque l'emprunt comme restitué dans l'historique */
+        for (Emprunt emprunt : emprunts) {
+            if (emprunt.getQrCode() == qrCode &&
+                    emprunt.getCarteEmprunteur() == utilisateur.getCarteAcces() &&
+                    emprunt.estEnCours()) {
+                emprunt.restituer();
+                break;
+            }
+        }
+        GestionOutils.sauvegarderEmprunts(emprunts);
+
+        System.out.println("[Outils] Restitution : QR#" + qrCode + " (" + outil.getNom() + ") par " +
+                utilisateur.getPrenom() + " " + utilisateur.getNom() + " dans local #" + idLocal);
+        return true;
+    }
+
+    @Override
+    public List<Emprunt> consulterMesEmprunts(String jeton) throws RemoteException {
+        Utilisateur utilisateur = verifierEtObtenirUtilisateur(jeton);
+        return emprunts.stream()
+                .filter(e -> e.getCarteEmprunteur() == utilisateur.getCarteAcces())
                 .collect(Collectors.toList());
     }
 

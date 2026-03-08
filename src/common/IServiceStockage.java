@@ -29,4 +29,10 @@ public interface IServiceStockage extends Remote {
 
     /* Consulte les outils stockés dans un local */
     List<Long> consulterOutilsLocal(String jeton, long idLocal) throws RemoteException;
+
+    /* Enregistre l'emprunt d'un outil (retire l'outil du local) */
+    boolean enregistrerEmprunt(String jeton, long qrCode, long idLocal) throws RemoteException;
+
+    /* Enregistre la restitution d'un outil (réintègre l'outil dans le local) */
+    boolean enregistrerRestitution(String jeton, long qrCode, long idLocal) throws RemoteException;
 }

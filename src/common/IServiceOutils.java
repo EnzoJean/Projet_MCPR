@@ -1,6 +1,7 @@
 package common;
 
 import common.modeles.Outil;
+import common.modeles.Emprunt;
 import common.modeles.CategorieOutil;
 
 import java.rmi.Remote;
@@ -17,7 +18,7 @@ public interface IServiceOutils extends Remote {
     Outil declarerOutil(String jeton, String nom, String usage, String description,
             double poids, String dimensions, CategorieOutil categorie) throws RemoteException;
 
-    /* Consulte tous les outils disponibles */
+    /* Consulte tous les outils */
     List<Outil> consulterTousOutils(String jeton) throws RemoteException;
 
     /* Consulte les outils d'une catégorie spécifique */
@@ -31,4 +32,16 @@ public interface IServiceOutils extends Remote {
 
     /* Consulte les outils déclarés par l'utilisateur connecté */
     List<Outil> consulterMesOutils(String jeton) throws RemoteException;
+
+    /* Consulte les outils disponibles à l'emprunt (état DISPONIBLE) */
+    List<Outil> consulterOutilsDisponibles(String jeton) throws RemoteException;
+
+    /* Emprunte un outil depuis un local (scan QR code) */
+    boolean emprunterOutil(String jeton, long qrCode, long idLocal) throws RemoteException;
+
+    /* Restitue un outil dans un local (scan QR code) */
+    boolean restituerOutil(String jeton, long qrCode, long idLocal) throws RemoteException;
+
+    /* Consulte les emprunts en cours de l'utilisateur connecté */
+    List<Emprunt> consulterMesEmprunts(String jeton) throws RemoteException;
 }

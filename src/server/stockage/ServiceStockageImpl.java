@@ -129,6 +129,48 @@ public class ServiceStockageImpl extends UnicastRemoteObject implements IService
         return new ArrayList<>(local.getOutilsStockes());
     }
 
+    @Override
+    public boolean enregistrerEmprunt(String jeton, long qrCode, long idLocal) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+
+        LocalStockage local = locaux.get(idLocal);
+        if (local == null) {
+            System.err.println("[Stockage] Local #" + idLocal + " introuvable pour emprunt");
+            return false;
+        }
+
+        if (!local.getOutilsStockes().contains(qrCode)) {
+            System.err.println("[Stockage] Outil QR#" + qrCode + " non présent dans local #" + idLocal);
+            return false;
+        }
+
+        local.retirerOutil(qrCode);
+        GestionLocaux.sauvegarder(locaux);
+        System.out.println("[Stockage] Emprunt enregistré : QR#" + qrCode + " retiré du local #" + idLocal);
+        return true;
+    }
+
+    @Override
+    public boolean enregistrerRestitution(String jeton, long qrCode, long idLocal) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+
+        LocalStockage local = locaux.get(idLocal);
+        if (local == null) {
+            System.err.println("[Stockage] Local #" + idLocal + " introuvable pour restitution");
+            return false;
+        }
+
+        if (local.getNbOutilsStockes() >= local.getCapaciteMax()) {
+            System.err.println("[Stockage] Local #" + idLocal + " plein, restitution impossible");
+            return false;
+        }
+
+        local.ajouterOutil(qrCode);
+        GestionLocaux.sauvegarder(locaux);
+        System.out.println("[Stockage] Restitution enregistrée : QR#" + qrCode + " ajouté au local #" + idLocal);
+        return true;
+    }
+
     /* Vérifie un jeton et retourne l'utilisateur associé */
     private Utilisateur verifierEtObtenirUtilisateur(String jeton) throws RemoteException {
         if (serviceAuth == null) {
