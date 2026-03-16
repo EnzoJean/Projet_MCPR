@@ -8,6 +8,7 @@ import common.modeles.Emprunt;
 import common.modeles.Utilisateur;
 import common.modeles.CategorieOutil;
 import common.modeles.EtatOutil;
+import common.modeles.StatistiquesOutils;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -213,6 +214,37 @@ public class ServiceOutilsImpl extends UnicastRemoteObject implements IServiceOu
         return emprunts.stream()
                 .filter(e -> e.getCarteEmprunteur() == utilisateur.getCarteAcces())
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public StatistiquesOutils obtenirStatistiques(String jeton) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+
+        int nbTotal = outils.size();
+        int nbDisponibles = (int) outils.values().stream()
+                .filter(o -> o.getEtat() == EtatOutil.DISPONIBLE).count();
+        int nbEmpruntes = (int) outils.values().stream()
+                .filter(o -> o.getEtat() == EtatOutil.EMPRUNTE).count();
+        int nbEmpruntsTotal = emprunts.size();
+        int nbEmpruntsEnCours = (int) emprunts.stream().filter(Emprunt::estEnCours).count();
+
+        /* Répartition par catégorie */
+        Map<String, Integer> parCategorie = new LinkedHashMap<>();
+        for (CategorieOutil cat : CategorieOutil.values()) {
+            int nb = (int) outils.values().stream()
+                    .filter(o -> o.getCategorie() == cat).count();
+            if (nb > 0) parCategorie.put(cat.getLibelle(), nb);
+        }
+
+        /* Nombre d'emprunts par utilisateur (carte) */
+        Map<Long, Integer> parUtilisateur = new HashMap<>();
+        for (Emprunt e : emprunts) {
+            parUtilisateur.merge(e.getCarteEmprunteur(), 1, Integer::sum);
+        }
+
+        System.out.println("[Outils] Statistiques consultées");
+        return new StatistiquesOutils(nbTotal, nbDisponibles, nbEmpruntes,
+                nbEmpruntsTotal, nbEmpruntsEnCours, parCategorie, parUtilisateur);
     }
 
     /* Vérifie un jeton et retourne l'utilisateur associé */

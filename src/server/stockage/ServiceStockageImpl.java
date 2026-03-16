@@ -3,6 +3,7 @@ package server.stockage;
 import common.IServiceStockage;
 import common.IServiceAuthentification;
 import common.modeles.LocalStockage;
+import common.modeles.StatistiquesStockage;
 import common.modeles.Utilisateur;
 
 import java.rmi.RemoteException;
@@ -16,10 +17,12 @@ public class ServiceStockageImpl extends UnicastRemoteObject implements IService
 
     private IServiceAuthentification serviceAuth;
     private Map<Long, LocalStockage> locaux;
+    private Map<Long, Integer> nbRestitutionsParLocal;
 
     public ServiceStockageImpl() throws RemoteException {
         super();
         this.locaux = GestionLocaux.charger();
+        this.nbRestitutionsParLocal = new HashMap<>();
         System.out.println("[Stockage] Service démarré avec " + locaux.size() + " local/locaux");
         connecterAuServeurAuth();
     }
@@ -167,8 +170,31 @@ public class ServiceStockageImpl extends UnicastRemoteObject implements IService
 
         local.ajouterOutil(qrCode);
         GestionLocaux.sauvegarder(locaux);
+        nbRestitutionsParLocal.merge(idLocal, 1, Integer::sum);
         System.out.println("[Stockage] Restitution enregistrée : QR#" + qrCode + " ajouté au local #" + idLocal);
         return true;
+    }
+
+    @Override
+    public StatistiquesStockage obtenirStatistiques(String jeton) throws RemoteException {
+        verifierEtObtenirUtilisateur(jeton);
+
+        int nbLocaux = locaux.size();
+        int nbOutilsStockes = locaux.values().stream()
+                .mapToInt(LocalStockage::getNbOutilsStockes).sum();
+        int capaciteTotale = locaux.values().stream()
+                .mapToInt(LocalStockage::getCapaciteMax).sum();
+        double tauxOccupation = capaciteTotale > 0
+                ? (nbOutilsStockes * 100.0 / capaciteTotale) : 0.0;
+
+        Map<Long, Integer> parLocal = new LinkedHashMap<>();
+        for (Map.Entry<Long, LocalStockage> entry : locaux.entrySet()) {
+            parLocal.put(entry.getKey(), entry.getValue().getNbOutilsStockes());
+        }
+
+        System.out.println("[Stockage] Statistiques consultées");
+        return new StatistiquesStockage(nbLocaux, nbOutilsStockes, capaciteTotale,
+                tauxOccupation, parLocal, new HashMap<>(nbRestitutionsParLocal));
     }
 
     /* Vérifie un jeton et retourne l'utilisateur associé */

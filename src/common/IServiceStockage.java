@@ -1,6 +1,7 @@
 package common;
 
 import common.modeles.LocalStockage;
+import common.modeles.StatistiquesStockage;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -35,4 +36,7 @@ public interface IServiceStockage extends Remote {
 
     /* Enregistre la restitution d'un outil (réintègre l'outil dans le local) */
     boolean enregistrerRestitution(String jeton, long qrCode, long idLocal) throws RemoteException;
+
+    /* Retourne les statistiques du serveur de stockage */
+    StatistiquesStockage obtenirStatistiques(String jeton) throws RemoteException;
 }
